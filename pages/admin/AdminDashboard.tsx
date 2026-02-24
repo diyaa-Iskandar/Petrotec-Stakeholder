@@ -452,6 +452,15 @@ export const AdminDashboard: React.FC = () => {
     }
   }, [navigate]);
 
+  useEffect(() => {
+    if (isMobileMenuOpen) {
+      document.body.style.overflow = 'hidden';
+    } else {
+      document.body.style.overflow = '';
+    }
+    return () => { document.body.style.overflow = ''; };
+  }, [isMobileMenuOpen]);
+
   const editingProject = projects.find(p => p.id === editingProjectId);
 
   const handleLogout = () => {
@@ -472,52 +481,59 @@ export const AdminDashboard: React.FC = () => {
       { id: 'others', label: t('otherMembers'), icon: UserPlus },
   ];
 
-  const SidebarContent = () => (
+  const SidebarContent = ({ closeMenu }: { closeMenu?: () => void }) => (
       <>
-         <div className="p-6 flex items-center gap-3 border-b border-gray-100 dark:border-gray-800">
-             <div className="w-8 h-8 flex items-center justify-center">
-                 <img src="https://i.ibb.co/pj75GXSs/logo.png" alt="Logo" className="w-full h-full object-contain" />
+         <div className="p-6 flex items-center justify-between border-b border-gray-200/50 dark:border-gray-800/50">
+             <div className="flex items-center gap-3">
+                 <div className="w-8 h-8 flex items-center justify-center">
+                     <img src="https://i.ibb.co/pj75GXSs/logo.png" alt="Logo" className="w-full h-full object-contain" />
+                 </div>
+                 <span className="font-bold text-lg dark:text-white">{t('adminPanel')}</span>
              </div>
-             <span className="font-bold text-lg dark:text-white">{t('adminPanel')}</span>
+             {closeMenu && (
+                 <button onClick={closeMenu} className="p-2 text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white bg-gray-100 dark:bg-gray-800 rounded-lg">
+                     <X size={20} />
+                 </button>
+             )}
          </div>
          
-         <div className="px-4 py-2 flex gap-2 justify-center border-b border-gray-100 dark:border-gray-800">
+         <div className="px-4 py-3 flex gap-2 justify-center border-b border-gray-200/50 dark:border-gray-800/50">
              <button
                onClick={toggleLanguage}
-               className="flex-1 py-2 rounded-lg flex items-center justify-center gap-2 bg-gray-50 dark:bg-gray-800 text-gray-600 dark:text-gray-300 hover:bg-petrotec-50 dark:hover:bg-petrotec-900/20 hover:text-petrotec-600 transition-colors text-sm font-bold"
+               className="flex-1 py-2 rounded-xl flex items-center justify-center gap-2 bg-gray-100/50 dark:bg-gray-800/50 text-gray-600 dark:text-gray-300 hover:bg-petrotec-50 dark:hover:bg-petrotec-900/30 hover:text-petrotec-600 transition-colors text-sm font-bold border border-transparent hover:border-petrotec-200 dark:hover:border-petrotec-800"
              >
                <Globe size={16}/> {language === 'en' ? 'Arabic' : 'English'}
              </button>
              <button
                onClick={toggleTheme}
-               className="flex-1 py-2 rounded-lg flex items-center justify-center gap-2 bg-gray-50 dark:bg-gray-800 text-gray-600 dark:text-gray-300 hover:bg-petrotec-50 dark:hover:bg-petrotec-900/20 hover:text-petrotec-600 transition-colors"
+               className="flex-1 py-2 rounded-xl flex items-center justify-center gap-2 bg-gray-100/50 dark:bg-gray-800/50 text-gray-600 dark:text-gray-300 hover:bg-petrotec-50 dark:hover:bg-petrotec-900/30 hover:text-petrotec-600 transition-colors border border-transparent hover:border-petrotec-200 dark:hover:border-petrotec-800"
              >
                {theme === 'dark' ? <Sun size={16}/> : <Moon size={16}/>}
              </button>
          </div>
 
-         <nav className="p-4 space-y-2 flex-grow">
+         <nav className="p-4 space-y-2 flex-grow overflow-y-auto">
              {menuItems.map(item => (
                  <button 
                     key={item.id}
-                    onClick={() => { setActiveView(item.id); setEditingProjectId(null); setIsMobileMenuOpen(false); }}
-                    className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-colors font-medium ${activeView === item.id ? 'bg-petrotec-50 dark:bg-petrotec-900/20 text-petrotec-700 dark:text-petrotec-400' : 'text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800'}`}
+                    onClick={() => { setActiveView(item.id); setEditingProjectId(null); if(closeMenu) closeMenu(); }}
+                    className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all font-medium ${activeView === item.id ? 'bg-gradient-to-r from-petrotec-500 to-cyan-500 text-white shadow-md shadow-petrotec-500/20' : 'text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800'}`}
                  >
-                     <item.icon size={20} /> {item.label}
+                     <item.icon size={20} className={activeView === item.id ? 'text-white' : ''} /> {item.label}
                  </button>
              ))}
              
-             <div className="my-4 border-t border-gray-100 dark:border-gray-800"></div>
+             <div className="my-4 border-t border-gray-200/50 dark:border-gray-800/50"></div>
 
              <Link 
                 to="/"
-                className="w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-colors font-medium text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800"
+                className="w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-colors font-medium text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800"
              >
                  <Home size={20} /> {t('backToHome')}
              </Link>
          </nav>
-         <div className="p-4 border-t border-gray-100 dark:border-gray-800">
-             <button onClick={handleLogout} className="w-full flex items-center gap-3 px-4 py-3 text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-xl transition-colors">
+         <div className="p-4 border-t border-gray-200/50 dark:border-gray-800/50">
+             <button onClick={handleLogout} className="w-full flex items-center gap-3 px-4 py-3 text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-xl transition-colors font-medium">
                  <LogOut size={20} /> {t('logout')}
              </button>
          </div>
@@ -527,28 +543,28 @@ export const AdminDashboard: React.FC = () => {
   return (
     <div className="min-h-screen bg-gray-100 dark:bg-gray-950 flex flex-col lg:flex-row">
       {/* Mobile Header */}
-      <div className="lg:hidden bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-800 p-4 flex justify-between items-center sticky top-0 z-50">
+      <div className="lg:hidden glass-panel border-b border-gray-200/50 dark:border-gray-800/50 p-4 flex items-center gap-4 sticky top-0 z-40 shadow-sm">
+          <button onClick={() => setIsMobileMenuOpen(true)} className="p-2 text-gray-600 dark:text-gray-300 bg-gray-100/80 dark:bg-gray-800/80 rounded-xl hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors">
+              <Menu size={24}/>
+          </button>
           <div className="font-bold text-lg dark:text-white flex items-center gap-2">
               <div className="w-8 h-8 flex items-center justify-center">
                   <img src="https://i.ibb.co/pj75GXSs/logo.png" alt="Logo" className="w-full h-full object-contain" />
               </div>
               {t('adminPanel')}
           </div>
-          <button onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)} className="p-2 text-gray-600 dark:text-gray-300">
-              {isMobileMenuOpen ? <X size={24}/> : <Menu size={24}/>}
-          </button>
       </div>
 
       {/* Sidebar (Desktop) */}
-      <aside className="hidden lg:flex w-64 bg-white dark:bg-gray-900 border-r border-gray-200 dark:border-gray-800 flex-col fixed h-full z-10">
+      <aside className="hidden lg:flex w-64 bg-white/80 dark:bg-gray-900/80 backdrop-blur-2xl border-r border-gray-200/50 dark:border-gray-800/50 flex-col fixed h-full z-20 shadow-[4px_0_24px_rgba(0,0,0,0.02)] dark:shadow-[4px_0_24px_rgba(0,0,0,0.2)]">
          <SidebarContent />
       </aside>
 
       {/* Sidebar (Mobile Overlay) */}
       {isMobileMenuOpen && (
-          <div className="lg:hidden fixed inset-0 z-40 bg-gray-900/50 backdrop-blur-sm" onClick={() => setIsMobileMenuOpen(false)}>
-              <div className="bg-white dark:bg-gray-900 w-3/4 h-full shadow-2xl flex flex-col" onClick={e => e.stopPropagation()}>
-                  <SidebarContent />
+          <div className="lg:hidden fixed inset-0 z-50 bg-gray-900/40 backdrop-blur-sm transition-opacity" onClick={() => setIsMobileMenuOpen(false)}>
+              <div className="bg-white/95 dark:bg-gray-900/95 backdrop-blur-2xl w-4/5 max-w-sm h-full shadow-2xl flex flex-col border-r border-white/20 dark:border-gray-700/50 animate-slide-right" onClick={e => e.stopPropagation()}>
+                  <SidebarContent closeMenu={() => setIsMobileMenuOpen(false)} />
               </div>
           </div>
       )}
