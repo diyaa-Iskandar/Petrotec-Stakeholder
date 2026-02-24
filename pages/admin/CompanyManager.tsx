@@ -6,6 +6,7 @@ import { Button } from '../../components/ui/Button';
 import { Input } from '../../components/ui/Input';
 import { Plus, Trash2, Edit2, Search, Building2, MapPin, User, Mail, Phone, X, Upload, Loader2, Briefcase } from 'lucide-react';
 import { supabase } from '../../src/lib/supabase';
+import { CompanyLogo } from '../../components/CompanyLogo';
 
 interface CompanyManagerProps {
     type: 'Client' | 'Contractor' | 'Consultant';
@@ -67,24 +68,29 @@ export const CompanyManager: React.FC<CompanyManagerProps> = ({ type, title }) =
         if (!e.target.files || e.target.files.length === 0) return;
         
         const file = e.target.files[0];
-        const fileExt = file.name.split('.').pop();
-        const fileName = `${Math.random()}.${fileExt}`;
-        const filePath = `${fileName}`;
+        
+        // Limit file size to 2MB to prevent database bloat
+        if (file.size > 2 * 1024 * 1024) {
+            alert(isEn ? 'Image is too large. Please choose an image under 2MB.' : 'حجم الصورة كبير جداً. يرجى اختيار صورة بحجم أقل من 2 ميجابايت.');
+            return;
+        }
 
         setUploading(true);
         try {
-            const { error: uploadError } = await supabase.storage
-                .from('logos')
-                .upload(filePath, file);
-
-            if (uploadError) throw uploadError;
-
-            const { data } = supabase.storage.from('logos').getPublicUrl(filePath);
-            setFormData(prev => ({ ...prev, logo: data.publicUrl }));
+            const reader = new FileReader();
+            reader.onloadend = () => {
+                const base64String = reader.result as string;
+                setFormData(prev => ({ ...prev, logo: base64String }));
+                setUploading(false);
+            };
+            reader.onerror = () => {
+                alert(isEn ? 'Error reading file' : 'حدث خطأ أثناء قراءة الملف');
+                setUploading(false);
+            };
+            reader.readAsDataURL(file);
         } catch (error) {
-            console.error('Error uploading image:', error);
-            alert('Error uploading image');
-        } finally {
+            console.error('Error processing image:', error);
+            alert(isEn ? 'Error processing image' : 'حدث خطأ أثناء معالجة الصورة');
             setUploading(false);
         }
     };
@@ -150,9 +156,7 @@ export const CompanyManager: React.FC<CompanyManagerProps> = ({ type, title }) =
                             <div>
                                 <label className="block text-sm font-medium mb-1.5 dark:text-gray-300">{t('companyLogo')}</label>
                                 <div className="flex items-center gap-3">
-                                    {formData.logo && (
-                                        <img src={formData.logo} alt="Preview" className="w-10 h-10 rounded-lg object-contain bg-gray-50 border border-gray-200" />
-                                    )}
+                                    <CompanyLogo logo={formData.logo} name={formData.name_en || 'New'} id={currentId || 'new'} className="w-10 h-10 flex-shrink-0" iconSize={20} />
                                     <label className="flex-grow cursor-pointer">
                                         <div className={`flex items-center justify-center gap-2 w-full p-2.5 rounded-xl border border-dashed border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors ${uploading ? 'opacity-50 cursor-not-allowed' : ''}`}>
                                             {uploading ? <Loader2 size={18} className="animate-spin"/> : <Upload size={18} />}
@@ -239,13 +243,7 @@ export const CompanyManager: React.FC<CompanyManagerProps> = ({ type, title }) =
                     <div key={item.id} className="bg-white dark:bg-gray-800 p-5 rounded-xl border border-gray-100 dark:border-gray-700 shadow-sm flex flex-col gap-4 group hover:shadow-md transition-all">
                         <div className="flex items-start justify-between">
                             <div className="flex items-center gap-3">
-                                {item.logo ? (
-                                    <img src={item.logo} alt={item.name_en} className="w-12 h-12 rounded-lg object-contain bg-gray-50 dark:bg-gray-700" />
-                                ) : (
-                                    <div className="w-12 h-12 rounded-lg bg-petrotec-50 dark:bg-petrotec-900/20 flex items-center justify-center text-petrotec-600 dark:text-petrotec-400">
-                                        <Building2 size={24} />
-                                    </div>
-                                )}
+                                <CompanyLogo logo={item.logo} name={item.name_en} id={item.id} className="w-12 h-12" iconSize={24} />
                                 <div>
                                     <div className="font-bold text-gray-900 dark:text-white line-clamp-1">{item.name_en}</div>
                                     <div className="text-xs text-gray-500 line-clamp-1">{item.name_ar}</div>

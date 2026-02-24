@@ -149,45 +149,108 @@ insert into public.admin_users (username, password)
 values ('admin@petrotec.com', 'admin123');
 
 -- Companies
-insert into public.companies (name_en, name_ar, type, location) values 
-('Saudi Aramco', 'أرامكو السعودية', 'Client', 'Dhahran'),
-('Petrotec Engineering', 'بتروتك للهندسة', 'Contractor', 'Riyadh'),
-('Dar Al-Handasah', 'دار الهندسة', 'Consultant', 'Jeddah');
+insert into public.companies (name_en, name_ar, type, location, logo, location_url) values 
+('Alstom', 'ألستوم', 'Client', 'Cairo, Egypt', 'https://upload.wikimedia.org/wikipedia/commons/thumb/1/11/Alstom_logo.svg/2560px-Alstom_logo.svg.png', 'https://maps.google.com/?q=Alstom+Cairo'),
+('Orascom Construction', 'أوراسكوم للإنشاءات', 'Contractor', 'New Cairo, Egypt', 'https://upload.wikimedia.org/wikipedia/en/thumb/8/87/Orascom_Construction_logo.svg/1200px-Orascom_Construction_logo.svg.png', 'https://maps.google.com/?q=Orascom+Construction'),
+('Vestas', 'فيستاس', 'Client', 'Zafarana, Egypt', 'https://upload.wikimedia.org/wikipedia/commons/thumb/8/8e/Vestas_logo.svg/2560px-Vestas_logo.svg.png', 'https://maps.google.com/?q=Vestas+Egypt'),
+('Siemens Gamesa', 'سيمنز جاميسا', 'Contractor', 'Ras Ghareb, Egypt', 'https://upload.wikimedia.org/wikipedia/commons/thumb/c/c1/Siemens_Gamesa_logo.svg/2560px-Siemens_Gamesa_logo.svg.png', 'https://maps.google.com/?q=Siemens+Gamesa+Egypt'),
+('Khatib & Alami', 'خطيب وعلمي', 'Consultant', 'Maadi, Cairo', 'https://www.khatibalami.com/images/logo.png', 'https://maps.google.com/?q=Khatib+and+Alami+Cairo'),
+('Petrotec Engineering', 'بتروتك للهندسة', 'Contractor', 'Nasr City, Cairo', 'https://i.ibb.co/pj75GXSs/logo.png', 'https://maps.google.com/?q=Nasr+City+Cairo');
 
 -- Team Members
-insert into public.team_members (full_name, job_title_en, job_title_ar, phone, email, type) values
-('Ahmed Ali', 'Project Manager', 'مدير مشروع', '+966500000001', 'ahmed@petrotec.com', 'Internal'),
-('Sarah Smith', 'QA/QC Engineer', 'مهندس جودة', '+966500000002', 'sarah@petrotec.com', 'Internal'),
-('John Doe', 'Site Engineer', 'مهندس موقع', '+966500000003', 'john@external.com', 'External');
+insert into public.team_members (full_name, job_title_en, job_title_ar, phone, whatsapp, email, type) values
+('Eng. Diyaa Sami', 'Project Manager', 'مدير مشروع', '+201001234567', '+201001234567', 'diyaa@petrotec.com', 'Internal'),
+('Eng. Ahmed Hassan', 'Senior Civil Engineer', 'مهندس مدني أول', '+201112345678', '+201112345678', 'ahmed.hassan@petrotec.com', 'Internal'),
+('Eng. Mahmoud Youssef', 'MEP Manager', 'مدير إلكتروميكانيك', '+201223456789', '+201223456789', 'mahmoud@petrotec.com', 'Internal'),
+('Eng. Sarah Ibrahim', 'QA/QC Engineer', 'مهندسة جودة', '+201098765432', '+201098765432', 'sarah@petrotec.com', 'Internal'),
+('Eng. Mohamed Ali', 'HSE Officer', 'مسئول سلامة وصحة مهنية', '+201551234567', '+201551234567', 'm.ali@petrotec.com', 'Internal'),
+('Eng. Tarek Mostafa', 'Site Engineer', 'مهندس موقع', '+201011122233', '+201011122233', 'tarek@orascom.com', 'External'),
+('Eng. Noha Kamal', 'Design Consultant', 'استشاري تصميم', '+201222333444', '+201222333444', 'noha@khatibalami.com', 'External');
 
 -- Projects
-insert into public.projects (name_en, name_ar, status, password_hash, location_en, location_ar, disciplines) values
-('Riyadh Metro Station 1', 'محطة مترو الرياض 1', 'Active', '1234', 'Riyadh, KSA', 'الرياض، المملكة العربية السعودية', ARRAY['Construction', 'MEP', 'Management']);
+insert into public.projects (name_en, name_ar, status, password_hash, location_en, location_ar, google_map_url, scope, disciplines) values
+('Cairo Monorail - East Nile', 'مونوريل شرق النيل (العاصمة الإدارية)', 'Active', '1234', 'New Cairo to New Capital', 'القاهرة الجديدة إلى العاصمة الإدارية', 'https://maps.app.goo.gl/example1', 'Construction of guideway, stations, and depot for the East Nile Monorail project.', ARRAY['Management', 'Civil Works', 'MEP', 'QA/QC', 'HSE']),
+('Gulf of Suez Wind Farm 250MW', 'مزرعة رياح خليج السويس 250 ميجاوات', 'Active', '1234', 'Ras Ghareb, Red Sea', 'رأس غارب، البحر الأحمر', 'https://maps.app.goo.gl/example2', 'Installation and commissioning of 70 wind turbines including civil foundations and electrical substations.', ARRAY['Management', 'Civil Works', 'Electrical', 'HSE', 'Logistics']),
+('Cairo Metro Line 4 - Phase 1', 'الخط الرابع لمترو أنفاق القاهرة - المرحلة الأولى', 'On Hold', '1234', 'Giza to Fustat', 'الجيزة إلى الفسطاط', 'https://maps.app.goo.gl/example3', 'Underground tunneling and station construction for the new metro line.', ARRAY['Management', 'Tunneling', 'Civil Works', 'MEP']);
 
--- Assignments (Link Ahmed Ali to Riyadh Metro)
+-- Assignments (Link Members to Projects)
 do $$
 declare
-  p_id uuid;
-  m_id uuid;
+  p_monorail uuid;
+  p_windfarm uuid;
+  m_diyaa uuid;
+  m_ahmed uuid;
+  m_mahmoud uuid;
+  m_sarah uuid;
+  m_mohamed uuid;
+  m_tarek uuid;
+  m_noha uuid;
 begin
-  select id into p_id from public.projects limit 1;
-  select id into m_id from public.team_members where full_name = 'Ahmed Ali' limit 1;
+  -- Get Project IDs
+  select id into p_monorail from public.projects where name_en = 'Cairo Monorail - East Nile' limit 1;
+  select id into p_windfarm from public.projects where name_en = 'Gulf of Suez Wind Farm 250MW' limit 1;
   
-  insert into public.project_assignments (project_id, member_id, discipline, role_en, role_ar)
-  values (p_id, m_id, 'Management', 'Project Manager', 'مدير مشروع');
+  -- Get Member IDs
+  select id into m_diyaa from public.team_members where full_name = 'Eng. Diyaa Sami' limit 1;
+  select id into m_ahmed from public.team_members where full_name = 'Eng. Ahmed Hassan' limit 1;
+  select id into m_mahmoud from public.team_members where full_name = 'Eng. Mahmoud Youssef' limit 1;
+  select id into m_sarah from public.team_members where full_name = 'Eng. Sarah Ibrahim' limit 1;
+  select id into m_mohamed from public.team_members where full_name = 'Eng. Mohamed Ali' limit 1;
+  select id into m_tarek from public.team_members where full_name = 'Eng. Tarek Mostafa' limit 1;
+  select id into m_noha from public.team_members where full_name = 'Eng. Noha Kamal' limit 1;
+  
+  -- Assign to Monorail
+  insert into public.project_assignments (project_id, member_id, discipline, role_en, role_ar, sort_order) values 
+  (p_monorail, m_diyaa, 'Management', 'Project Manager', 'مدير المشروع', 1),
+  (p_monorail, m_ahmed, 'Civil Works', 'Lead Civil Engineer', 'مهندس مدني رئيسي', 2),
+  (p_monorail, m_mahmoud, 'MEP', 'MEP Coordinator', 'منسق إلكتروميكانيك', 3),
+  (p_monorail, m_sarah, 'QA/QC', 'Quality Manager', 'مدير الجودة', 4),
+  (p_monorail, m_tarek, 'Civil Works', 'Contractor Rep.', 'ممثل المقاول', 5),
+  (p_monorail, m_noha, 'Management', 'Consultant Rep.', 'ممثل الاستشاري', 6);
+
+  -- Assign to Wind Farm
+  insert into public.project_assignments (project_id, member_id, discipline, role_en, role_ar, sort_order) values 
+  (p_windfarm, m_diyaa, 'Management', 'Project Director', 'مدير المشروع', 1),
+  (p_windfarm, m_mohamed, 'HSE', 'HSE Manager', 'مدير السلامة', 2),
+  (p_windfarm, m_ahmed, 'Civil Works', 'Foundation Engineer', 'مهندس أساسات', 3);
 end
 $$;
 
--- Project Companies (Link Aramco to Riyadh Metro)
+-- Project Companies (Link Companies to Projects)
 do $$
 declare
-  p_id uuid;
-  c_id uuid;
+  p_monorail uuid;
+  p_windfarm uuid;
+  c_alstom uuid;
+  c_orascom uuid;
+  c_khatib uuid;
+  c_vestas uuid;
+  c_gamesa uuid;
+  c_petrotec uuid;
 begin
-  select id into p_id from public.projects limit 1;
-  select id into c_id from public.companies where name_en = 'Saudi Aramco' limit 1;
+  -- Get Project IDs
+  select id into p_monorail from public.projects where name_en = 'Cairo Monorail - East Nile' limit 1;
+  select id into p_windfarm from public.projects where name_en = 'Gulf of Suez Wind Farm 250MW' limit 1;
   
-  insert into public.project_companies (project_id, company_id, role)
-  values (p_id, c_id, 'End Client');
+  -- Get Company IDs
+  select id into c_alstom from public.companies where name_en = 'Alstom' limit 1;
+  select id into c_orascom from public.companies where name_en = 'Orascom Construction' limit 1;
+  select id into c_khatib from public.companies where name_en = 'Khatib & Alami' limit 1;
+  select id into c_vestas from public.companies where name_en = 'Vestas' limit 1;
+  select id into c_gamesa from public.companies where name_en = 'Siemens Gamesa' limit 1;
+  select id into c_petrotec from public.companies where name_en = 'Petrotec Engineering' limit 1;
+  
+  -- Link to Monorail
+  insert into public.project_companies (project_id, company_id, role) values 
+  (p_monorail, c_alstom, 'End Client'),
+  (p_monorail, c_orascom, 'Main Contractor'),
+  (p_monorail, c_petrotec, 'Sub Contractor'),
+  (p_monorail, c_khatib, 'Consultant');
+
+  -- Link to Wind Farm
+  insert into public.project_companies (project_id, company_id, role) values 
+  (p_windfarm, c_vestas, 'End Client'),
+  (p_windfarm, c_gamesa, 'Main Contractor'),
+  (p_windfarm, c_petrotec, 'Sub Contractor');
 end
 $$;

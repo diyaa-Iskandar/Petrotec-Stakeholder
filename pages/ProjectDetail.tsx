@@ -9,6 +9,7 @@ import { Button } from '../components/ui/Button';
 import { Lock, Search, Phone, Mail, MessageCircle, Copy, Check, Filter, ShieldAlert, ArrowLeft, ExternalLink, HardHat, FileText, Building2, MapPin, X, Globe, Users, Sun, Moon, ChevronDown, ChevronUp, Briefcase } from 'lucide-react';
 import { Company } from '../types';
 import { Language } from '../types';
+import { CompanyLogo } from '../components/CompanyLogo';
 
 const CollapsibleCard: React.FC<{ title: string; icon: React.ReactNode; children: React.ReactNode; defaultOpen?: boolean; count?: number }> = ({ title, icon, children, defaultOpen = false, count }) => {
   const [isOpen, setIsOpen] = useState(defaultOpen);
@@ -349,12 +350,8 @@ export const ProjectDetail: React.FC = () => {
                     className="bg-white dark:bg-gray-800 p-6 rounded-2xl border border-gray-100 dark:border-gray-700 shadow-sm hover:shadow-xl hover:-translate-y-1 transition-all cursor-pointer group"
                   >
                       <div className="flex items-start justify-between mb-4">
-                          <div className="w-16 h-16 rounded-xl bg-gray-50 dark:bg-gray-900 flex items-center justify-center border border-gray-200 dark:border-gray-700 p-2">
-                              {p.company!.logo ? (
-                                  <img src={p.company!.logo} alt="Logo" className="w-full h-full object-contain"/>
-                              ) : (
-                                  <Building2 size={32} className="text-gray-400"/>
-                              )}
+                          <div className="w-16 h-16 rounded-xl bg-gray-50 dark:bg-gray-900 flex items-center justify-center border border-gray-200 dark:border-gray-700 p-2 overflow-hidden">
+                              <CompanyLogo logo={p.company!.logo} name={p.company!.name_en} id={p.company!.id} className="w-full h-full" iconSize={32} />
                           </div>
                           <span className="px-3 py-1 rounded-full text-xs font-bold bg-petrotec-50 text-petrotec-700 dark:bg-petrotec-900/30 dark:text-petrotec-300 border border-petrotec-100 dark:border-petrotec-800">
                               {t(p.role === 'End Client' ? 'endClient' : p.role === 'Main Contractor' ? 'mainContractor' : p.role === 'Sub Contractor' ? 'subContractor' : p.role === 'Consultant' ? 'consultant' : 'other')}
@@ -464,12 +461,8 @@ export const ProjectDetail: React.FC = () => {
               <div className="bg-white dark:bg-gray-800 w-full max-w-2xl rounded-3xl shadow-2xl overflow-hidden" onClick={e => e.stopPropagation()}>
                   <div className="p-6 border-b border-gray-100 dark:border-gray-700 flex justify-between items-center bg-gray-50 dark:bg-gray-800/50">
                       <div className="flex items-center gap-4">
-                          <div className="w-16 h-16 rounded-xl bg-white dark:bg-gray-700 flex items-center justify-center border border-gray-200 dark:border-gray-600 p-2">
-                              {selectedCompany.logo ? (
-                                  <img src={selectedCompany.logo} className="w-full h-full object-contain"/>
-                              ) : (
-                                  <Building2 size={32} className="text-gray-400"/>
-                              )}
+                          <div className="w-16 h-16 rounded-xl bg-white dark:bg-gray-700 flex items-center justify-center border border-gray-200 dark:border-gray-600 p-2 overflow-hidden">
+                              <CompanyLogo logo={selectedCompany.logo} name={selectedCompany.name_en} id={selectedCompany.id} className="w-full h-full" iconSize={32} />
                           </div>
                           <div>
                               <h3 className="text-xl font-bold dark:text-white">{isEn ? selectedCompany.name_en : (selectedCompany.name_ar || selectedCompany.name_en)}</h3>
