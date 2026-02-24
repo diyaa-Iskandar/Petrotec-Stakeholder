@@ -1,0 +1,21 @@
+{
+  "name": "Petrotec Project Hub",
+  "short_name": "Petrotec",
+  "description": "Secure Stakeholder Directory for Petrotec Engineering",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#0f172a",
+  "theme_color": "#0ea5e9",
+  "icons": [
+    {
+      "src": "https://i.ibb.co/pj75GXSs/logo.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "https://i.ibb.co/pj75GXSs/logo.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}
