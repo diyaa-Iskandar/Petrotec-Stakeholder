@@ -4,7 +4,7 @@ import { useLanguage } from '../../contexts/LanguageContext';
 import { TeamMember } from '../../types';
 import { Button } from '../../components/ui/Button';
 import { Input } from '../../components/ui/Input';
-import { Plus, Trash2, Search, Users, UserPlus, Briefcase } from 'lucide-react';
+import { Plus, Trash2, Edit2, Search, Users, UserPlus, Briefcase } from 'lucide-react';
 
 interface TeamManagerProps {
     type: 'Internal' | 'External';
@@ -12,13 +12,15 @@ interface TeamManagerProps {
 }
 
 export const TeamManager: React.FC<TeamManagerProps> = ({ type, title }) => {
-    const { teamMembers, othersMembers, addTeamMember, deleteTeamMember, assignments, projects } = useData();
+    const { teamMembers, othersMembers, addTeamMember, updateTeamMember, deleteTeamMember, assignments, projects } = useData();
     const { t, language } = useLanguage();
     const isEn = language === 'en';
     
     const members = type === 'Internal' ? teamMembers : othersMembers;
     
     const [isAdding, setIsAdding] = useState(false);
+    const [isEditing, setIsEditing] = useState(false);
+    const [currentId, setCurrentId] = useState<string | null>(null);
     const [newMember, setNewMember] = useState<Partial<TeamMember>>({
         full_name: '', job_title_en: '', job_title_ar: '', phone: '', email: '', type: type
     });
@@ -27,10 +29,35 @@ export const TeamManager: React.FC<TeamManagerProps> = ({ type, title }) => {
     const handleAdd = (e: React.FormEvent) => {
         e.preventDefault();
         if (newMember.full_name) {
-            addTeamMember({ ...newMember, type } as any);
-            setNewMember({ full_name: '', job_title_en: '', job_title_ar: '', phone: '', email: '', type: type });
-            setIsAdding(false);
+            if (isEditing && currentId) {
+                updateTeamMember(currentId, newMember);
+            } else {
+                addTeamMember({ ...newMember, type } as any);
+            }
+            resetForm();
         }
+    };
+
+    const handleEdit = (member: TeamMember) => {
+        setNewMember({
+            full_name: member.full_name,
+            job_title_en: member.job_title_en || '',
+            job_title_ar: member.job_title_ar || '',
+            phone: member.phone || '',
+            email: member.email || '',
+            company: member.company || '',
+            type: member.type
+        });
+        setCurrentId(member.id);
+        setIsEditing(true);
+        setIsAdding(true);
+    };
+
+    const resetForm = () => {
+        setNewMember({ full_name: '', job_title_en: '', job_title_ar: '', phone: '', email: '', type: type });
+        setIsAdding(false);
+        setIsEditing(false);
+        setCurrentId(null);
     };
 
     const filteredMembers = members.filter(m => 
@@ -61,7 +88,7 @@ export const TeamManager: React.FC<TeamManagerProps> = ({ type, title }) => {
             {isAdding && (
                 <div className="bg-white dark:bg-gray-800 p-6 rounded-xl border border-petrotec-200 dark:border-gray-700 shadow-xl animate-fade-in">
                     <h3 className="font-bold mb-4 dark:text-white">
-                        {type === 'Internal' ? t('addNewEmployee') : t('addNewMember')}
+                        {isEditing ? t('edit') : (type === 'Internal' ? t('addNewEmployee') : t('addNewMember'))}
                     </h3>
                     <form onSubmit={handleAdd} className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <Input label={t('fullName')} value={newMember.full_name} onChange={e => setNewMember({...newMember, full_name: e.target.value})} required />
@@ -73,8 +100,8 @@ export const TeamManager: React.FC<TeamManagerProps> = ({ type, title }) => {
                              <Input label={t('companyName')} value={newMember.company} onChange={e => setNewMember({...newMember, company: e.target.value})} />
                         )}
                         <div className="md:col-span-2 flex justify-end gap-2 mt-4">
-                            <Button type="button" variant="ghost" onClick={() => setIsAdding(false)}>{t('cancel')}</Button>
-                            <Button type="submit">{t('addToList')}</Button>
+                            <Button type="button" variant="ghost" onClick={resetForm}>{t('cancel')}</Button>
+                            <Button type="submit">{isEditing ? t('edit') : t('addToList')}</Button>
                         </div>
                     </form>
                 </div>
@@ -128,7 +155,10 @@ export const TeamManager: React.FC<TeamManagerProps> = ({ type, title }) => {
                                         )}
                                     </td>
                                     <td className="p-4 text-right">
-                                        <button onClick={() => deleteTeamMember(m.id)} className="text-red-500 hover:text-red-700 p-2"><Trash2 size={16}/></button>
+                                        <div className="flex justify-end gap-1">
+                                            <button onClick={() => handleEdit(m)} className="text-blue-500 hover:text-blue-700 p-2"><Edit2 size={16}/></button>
+                                            <button onClick={() => deleteTeamMember(m.id)} className="text-red-500 hover:text-red-700 p-2"><Trash2 size={16}/></button>
+                                        </div>
                                     </td>
                                 </tr>
                             );

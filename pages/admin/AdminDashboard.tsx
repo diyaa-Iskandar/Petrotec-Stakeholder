@@ -5,7 +5,7 @@ import { useLanguage } from '../../contexts/LanguageContext';
 import { useTheme } from '../../contexts/ThemeContext';
 import { Button } from '../../components/ui/Button';
 import { Input } from '../../components/ui/Input';
-import { LogOut, LayoutGrid, Users, Plus, Trash2, Edit2, X, Search, Briefcase, Home, Menu, Building2, HardHat, UserPlus, FileText, MapPin, Sun, Moon, Globe, CheckCircle } from 'lucide-react';
+import { LogOut, LayoutGrid, Users, Plus, Trash2, Edit2, X, Search, Briefcase, Home, Menu, Building2, HardHat, UserPlus, FileText, MapPin, Sun, Moon, Globe, CheckCircle, Bell, Phone, Mail } from 'lucide-react';
 import { Project, TeamMember, ProjectAssignment, ProjectCompany } from '../../types';
 import { CompanyManager } from './CompanyManager';
 import { TeamManager } from './TeamManager';
@@ -148,7 +148,7 @@ const ManageProjects = ({ onEditProject }: { onEditProject: (p: Project) => void
 
 // 3. Project Detail Editor
 const ProjectEditor = ({ project, onBack }: { project: Project; onBack: () => void }) => {
-    const { updateProject, teamMembers, othersMembers, assignments, assignMemberToProject, removeAssignment, clients, contractors, consultants, projectCompanies, addProjectCompany, removeProjectCompany } = useData();
+    const { updateProject, teamMembers, othersMembers, assignments, assignMemberToProject, updateProjectAssignment, removeAssignment, clients, contractors, consultants, projectCompanies, addProjectCompany, removeProjectCompany } = useData();
     const { t, language } = useLanguage();
     const [activeTab, setActiveTab] = useState<'info' | 'partners' | 'team'>('partners');
     
@@ -366,11 +366,24 @@ const ProjectEditor = ({ project, onBack }: { project: Project; onBack: () => vo
                                             <option key={m.id} value={m.id}>{m.full_name}</option>
                                         ))}
                                     </optgroup>
-                                    <optgroup label={t('external')}>
-                                        {othersMembers.map(m => (
-                                            <option key={m.id} value={m.id}>{m.full_name}</option>
-                                        ))}
-                                    </optgroup>
+                                    {allCompanies.map(c => {
+                                        const companyEmployees = othersMembers.filter(m => m.company_id === c.id);
+                                        if (companyEmployees.length === 0) return null;
+                                        return (
+                                            <optgroup key={c.id} label={language === 'en' ? c.name_en : (c.name_ar || c.name_en)}>
+                                                {companyEmployees.map(m => (
+                                                    <option key={m.id} value={m.id}>{m.full_name}</option>
+                                                ))}
+                                            </optgroup>
+                                        );
+                                    })}
+                                    {othersMembers.filter(m => !m.company_id).length > 0 && (
+                                        <optgroup label={t('otherMembers')}>
+                                            {othersMembers.filter(m => !m.company_id).map(m => (
+                                                <option key={m.id} value={m.id}>{m.full_name}</option>
+                                            ))}
+                                        </optgroup>
+                                    )}
                                 </select>
                             </div>
                             <div>
@@ -407,16 +420,27 @@ const ProjectEditor = ({ project, onBack }: { project: Project; onBack: () => vo
                                         {discAssignments.map(a => {
                                             const member = allAvailableMembers.find(m => m.id === a.member_id);
                                             if(!member) return null;
+                                            const isPending = a.status === 'Pending';
                                             return (
-                                                <div key={a.id} className="flex justify-between items-center p-3 bg-gray-50 dark:bg-gray-900/50 rounded-lg mb-2">
+                                                <div key={a.id} className={`flex justify-between items-center p-3 rounded-lg mb-2 border ${isPending ? 'bg-amber-50 dark:bg-amber-900/20 border-amber-200 dark:border-amber-800' : 'bg-gray-50 dark:bg-gray-900/50 border-transparent'}`}>
                                                     <div>
                                                         <div className="font-semibold dark:text-gray-200 flex items-center gap-2">
                                                             {member.full_name}
-                                                            {member.type === 'External' && <span className="text-[10px] bg-amber-100 text-amber-700 px-1.5 rounded">Ext</span>}
+                                                            {member.type === 'External' && <span className="text-[10px] bg-blue-100 text-blue-700 px-1.5 rounded">Ext</span>}
+                                                            {isPending && <span className="text-[10px] bg-amber-100 text-amber-700 px-1.5 rounded animate-pulse">{t('pending')}</span>}
                                                         </div>
                                                         <div className="text-xs text-petrotec-600">{language === 'en' ? a.role_en : a.role_ar}</div>
                                                     </div>
-                                                    <button onClick={() => removeAssignment(a.id)} className="text-red-400 hover:text-red-600 p-2"><Trash2 size={16}/></button>
+                                                    <div className="flex gap-1">
+                                                        {isPending && (
+                                                            <button onClick={() => updateProjectAssignment(a.id, { status: 'Approved' })} className="text-green-500 hover:text-green-700 p-2 bg-green-50 dark:bg-green-900/20 rounded-lg" title={language === 'en' ? "Approve" : "موافقة"}>
+                                                                <CheckCircle size={16}/>
+                                                            </button>
+                                                        )}
+                                                        <button onClick={() => removeAssignment(a.id)} className="text-red-400 hover:text-red-600 p-2 bg-red-50 dark:bg-red-900/20 rounded-lg" title={language === 'en' ? "Remove" : "حذف"}>
+                                                            <Trash2 size={16}/>
+                                                        </button>
+                                                    </div>
                                                 </div>
                                             )
                                         })}
@@ -432,13 +456,88 @@ const ProjectEditor = ({ project, onBack }: { project: Project; onBack: () => vo
     );
 };
 
+// --- Pending Approvals Component ---
+const PendingApprovals = () => {
+    const { assignments, allMembers, projects, updateProjectAssignment, updateTeamMember, removeAssignment, deleteTeamMember } = useData();
+    const { t, language } = useLanguage();
+    
+    const pendingAssignments = assignments.filter(a => a.status === 'Pending');
+
+    const handleApprove = async (assignment: ProjectAssignment) => {
+        await updateProjectAssignment(assignment.id, { status: 'Approved' });
+        await updateTeamMember(assignment.member_id, { status: 'Approved' });
+    };
+
+    const handleReject = async (assignment: ProjectAssignment) => {
+        await removeAssignment(assignment.id);
+        await deleteTeamMember(assignment.member_id);
+    };
+
+    return (
+        <div className="space-y-6 animate-fade-in">
+            <div className="flex justify-between items-center">
+                <h2 className="text-2xl font-bold text-gray-900 dark:text-white">{t('pendingApprovals')}</h2>
+            </div>
+            
+            <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm overflow-hidden">
+                {pendingAssignments.length === 0 ? (
+                    <div className="p-10 text-center text-gray-400">
+                        <CheckCircle size={48} className="mx-auto mb-4 opacity-20" />
+                        <p>{t('noFound')}</p>
+                    </div>
+                ) : (
+                    <div className="divide-y divide-gray-100 dark:divide-gray-700">
+                        {pendingAssignments.map(a => {
+                            const member = allMembers.find(m => m.id === a.member_id);
+                            const project = projects.find(p => p.id === a.project_id);
+                            if (!member || !project) return null;
+                            
+                            return (
+                                <div key={a.id} className="p-6 flex flex-col md:flex-row md:items-center justify-between gap-4 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors">
+                                    <div>
+                                        <div className="flex items-center gap-2 mb-1">
+                                            <h3 className="font-bold text-lg dark:text-white">{member.full_name}</h3>
+                                            <span className="text-[10px] bg-amber-100 text-amber-700 px-2 py-0.5 rounded-full uppercase font-bold tracking-wider">{t('pending')}</span>
+                                        </div>
+                                        <div className="text-sm text-gray-500 mb-2">
+                                            {language === 'en' ? member.job_title_en : member.job_title_ar}
+                                        </div>
+                                        <div className="flex flex-wrap gap-3 text-sm">
+                                            {member.phone && <span className="flex items-center gap-1 text-gray-600 dark:text-gray-400"><Phone size={14}/> {member.phone}</span>}
+                                            {member.email && <span className="flex items-center gap-1 text-gray-600 dark:text-gray-400"><Mail size={14}/> {member.email}</span>}
+                                        </div>
+                                        <div className="mt-3 inline-flex items-center gap-2 px-3 py-1.5 bg-petrotec-50 dark:bg-petrotec-900/30 text-petrotec-700 dark:text-petrotec-300 rounded-lg text-sm font-medium border border-petrotec-100 dark:border-petrotec-800">
+                                            <Briefcase size={14} />
+                                            {t('suggestedBy')} {language === 'en' ? project.name_en : project.name_ar} 
+                                            <span className="opacity-50 mx-1">|</span> 
+                                            {language === 'en' ? a.role_en : a.role_ar}
+                                        </div>
+                                    </div>
+                                    <div className="flex gap-2">
+                                        <Button onClick={() => handleApprove(a)} className="bg-green-500 hover:bg-green-600 text-white" icon={<CheckCircle size={16}/>}>
+                                            {t('approve')}
+                                        </Button>
+                                        <Button onClick={() => handleReject(a)} variant="outline" className="text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 border-red-200 dark:border-red-900/30" icon={<Trash2 size={16}/>}>
+                                            {t('reject')}
+                                        </Button>
+                                    </div>
+                                </div>
+                            );
+                        })}
+                    </div>
+                )}
+            </div>
+        </div>
+    );
+};
+
 // --- Main Dashboard Component ---
 
-type ViewType = 'projects' | 'clients' | 'contractors' | 'consultants' | 'team' | 'others';
+type ViewType = 'projects' | 'clients' | 'contractors' | 'consultants' | 'team' | 'others' | 'pending';
 
 export const AdminDashboard: React.FC = () => {
   const navigate = useNavigate();
-  const { projects, deleteProject } = useData();
+  const { projects, deleteProject, assignments } = useData();
   const { t, language, setLanguage } = useLanguage();
   const { theme, toggleTheme } = useTheme();
   const [activeView, setActiveView] = useState<ViewType>('projects');
@@ -479,7 +578,10 @@ export const AdminDashboard: React.FC = () => {
       { id: 'consultants', label: t('consultants'), icon: FileText },
       { id: 'team', label: t('teamMembers'), icon: Users },
       { id: 'others', label: t('otherMembers'), icon: UserPlus },
+      { id: 'pending', label: t('pendingApprovals'), icon: Bell },
   ];
+
+  const pendingCount = assignments.filter(a => a.status === 'Pending').length;
 
   const SidebarContent = ({ closeMenu }: { closeMenu?: () => void }) => (
       <>
@@ -519,7 +621,11 @@ export const AdminDashboard: React.FC = () => {
                     onClick={() => { setActiveView(item.id); setEditingProjectId(null); if(closeMenu) closeMenu(); }}
                     className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all font-medium ${activeView === item.id ? 'bg-gradient-to-r from-petrotec-500 to-cyan-500 text-white shadow-md shadow-petrotec-500/20' : 'text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800'}`}
                  >
-                     <item.icon size={20} className={activeView === item.id ? 'text-white' : ''} /> {item.label}
+                     <item.icon size={20} className={activeView === item.id ? 'text-white' : ''} /> 
+                     <span className="flex-grow text-left">{item.label}</span>
+                     {item.id === 'pending' && pendingCount > 0 && (
+                         <span className="bg-red-500 text-white text-xs font-bold px-2 py-0.5 rounded-full">{pendingCount}</span>
+                     )}
                  </button>
              ))}
              
@@ -581,6 +687,7 @@ export const AdminDashboard: React.FC = () => {
                 {activeView === 'consultants' && <CompanyManager type="Consultant" title={t('consultants')} />}
                 {activeView === 'team' && <TeamManager type="Internal" title={t('teamMembers')} />}
                 {activeView === 'others' && <TeamManager type="External" title={t('otherMembers')} />}
+                {activeView === 'pending' && <PendingApprovals />}
               </>
           )}
       </main>

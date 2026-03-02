@@ -6,8 +6,8 @@ import { useProjectAuth } from '../contexts/ProjectAuthContext';
 import { useData } from '../contexts/DataContext';
 import { Input } from '../components/ui/Input';
 import { Button } from '../components/ui/Button';
-import { Lock, Search, Phone, Mail, MessageCircle, Copy, Check, Filter, ShieldAlert, ArrowLeft, ExternalLink, HardHat, FileText, Building2, MapPin, X, Globe, Users, Sun, Moon, ChevronDown, ChevronUp, Briefcase } from 'lucide-react';
-import { Company } from '../types';
+import { Lock, Search, Phone, Mail, MessageCircle, Copy, Check, Filter, ShieldAlert, ArrowLeft, ExternalLink, HardHat, FileText, Building2, MapPin, X, Globe, Users, Sun, Moon, ChevronDown, ChevronUp, Briefcase, Plus } from 'lucide-react';
+import { Company, TeamMember } from '../types';
 import { Language } from '../types';
 import { CompanyLogo } from '../components/CompanyLogo';
 
@@ -106,7 +106,7 @@ export const ProjectDetail: React.FC = () => {
   const { isProjectAuthorized, authorizeProject, refreshProjectSession } = useProjectAuth();
   const { t, language, setLanguage } = useLanguage();
   const { theme, toggleTheme } = useTheme();
-  const { projects, getProjectTeam, projectCompanies, clients, contractors, consultants } = useData();
+  const { projects, getProjectTeam, projectCompanies, clients, contractors, consultants, othersMembers, addTeamMember, assignMemberToProject } = useData();
   const isEn = language === 'en';
 
   const [passwordInput, setPasswordInput] = useState('');
@@ -121,6 +121,11 @@ export const ProjectDetail: React.FC = () => {
 
   // Modal State
   const [selectedCompany, setSelectedCompany] = useState<Company | null>(null);
+  const [isSuggestingMember, setIsSuggestingMember] = useState(false);
+  const [newMember, setNewMember] = useState<Partial<TeamMember>>({
+      full_name: '', job_title_en: '', phone: '', email: '', type: 'External'
+  });
+  const [newMemberRole, setNewMemberRole] = useState('');
 
   const project = projects.find(p => p.id === id);
 
@@ -190,8 +195,29 @@ export const ProjectDetail: React.FC = () => {
   // --- Data Logic ---
   const projectTeam = useMemo(() => {
     if (isLocked) return [];
-    return getProjectTeam(project.id);
-  }, [isLocked, project.id, getProjectTeam]);
+    
+    // 1. Get explicitly assigned members (only Approved)
+    const assigned = getProjectTeam(project.id).filter(a => a.assignment_status === 'Approved');
+    
+    // 2. Get auto-included company employees
+    const involvedCompanyIds = projectCompanies
+        .filter(pc => pc.project_id === project.id)
+        .map(pc => pc.company_id);
+    
+    const companyEmployees = othersMembers.filter(m => m.company_id && involvedCompanyIds.includes(m.company_id));
+    
+    // Merge them, avoiding duplicates
+    const assignedIds = new Set(assigned.map(a => a.id));
+    const autoIncluded = companyEmployees.filter(m => !assignedIds.has(m.id)).map(m => ({
+        ...m,
+        role_en: 'Company Staff',
+        role_ar: 'موظف شركة',
+        discipline: 'Other',
+        assignment_sort_order: 999
+    }));
+
+    return [...assigned, ...autoIncluded];
+  }, [isLocked, project.id, getProjectTeam, projectCompanies, othersMembers]);
 
   const { filteredManagers, filteredInternal, filteredExternal } = useMemo(() => {
     let filtered = projectTeam.filter(s => {
@@ -242,6 +268,37 @@ export const ProjectDetail: React.FC = () => {
         });
   }, [isLocked, projectCompanies, project.id, clients, contractors, consultants, searchTerm]);
 
+
+  const handleSuggestMember = async (e: React.FormEvent) => {
+      e.preventDefault();
+      if (newMember.full_name) {
+          try {
+              // 1. Create the team member
+              const createdMember = await addTeamMember(newMember as any);
+              
+              if (createdMember) {
+                  // 2. Create pending assignment
+                  await assignMemberToProject({
+                      project_id: project.id,
+                      member_id: createdMember.id,
+                      discipline: 'Other',
+                      role_en: newMemberRole,
+                      role_ar: newMemberRole,
+                      sort_order: 999,
+                      status: 'Pending'
+                  });
+                  
+                  alert(isEn ? 'Member suggestion submitted for approval.' : 'تم إرسال اقتراح العضو للموافقة.');
+                  setIsSuggestingMember(false);
+                  setNewMember({ full_name: '', job_title_en: '', phone: '', email: '', type: 'External' });
+                  setNewMemberRole('');
+              }
+          } catch (error) {
+              console.error('Error suggesting member:', error);
+              alert(isEn ? 'Error submitting suggestion.' : 'حدث خطأ أثناء إرسال الاقتراح.');
+          }
+      }
+  };
 
   // --- Render: Locked ---
   if (isLocked) {
@@ -410,6 +467,13 @@ export const ProjectDetail: React.FC = () => {
                   <Mail size={16} />
                   <span className="hidden sm:inline">{t('hasEmail')}</span>
                 </button>
+                <button 
+                  onClick={() => setIsSuggestingMember(true)}
+                  className="px-4 py-2 rounded-xl text-sm font-semibold transition-all whitespace-nowrap flex items-center gap-2 bg-petrotec-600 text-white hover:bg-petrotec-700 shadow-lg shadow-petrotec-500/30"
+                >
+                  <Plus size={16} />
+                  <span className="hidden sm:inline">{isEn ? 'Suggest Member' : 'اقتراح عضو'}</span>
+                </button>
              </div>
          </div>
       </div>
@@ -519,6 +583,35 @@ export const ProjectDetail: React.FC = () => {
                           )}
                       </div>
                   </div>
+              </div>
+          </div>
+      )}
+
+      {/* Suggest Member Modal */}
+      {isSuggestingMember && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-gray-900/60 backdrop-blur-sm animate-fade-in" onClick={() => setIsSuggestingMember(false)}>
+              <div className="bg-white dark:bg-gray-800 w-full max-w-md rounded-3xl shadow-2xl overflow-hidden" onClick={e => e.stopPropagation()}>
+                  <div className="p-6 border-b border-gray-100 dark:border-gray-700 flex justify-between items-center bg-gray-50 dark:bg-gray-800/50">
+                      <h3 className="text-xl font-bold dark:text-white">{isEn ? 'Suggest Team Member' : 'اقتراح عضو للفريق'}</h3>
+                      <button onClick={() => setIsSuggestingMember(false)} className="p-2 hover:bg-gray-200 dark:hover:bg-gray-700 rounded-full transition-colors">
+                          <X size={20} className="text-gray-500"/>
+                      </button>
+                  </div>
+                  <form onSubmit={handleSuggestMember} className="p-6 space-y-4">
+                      <p className="text-sm text-gray-500 mb-4">
+                          {isEn ? 'This member will be added to the project after admin approval.' : 'سيتم إضافة هذا العضو للمشروع بعد موافقة الإدارة.'}
+                      </p>
+                      <Input label={t('fullName')} value={newMember.full_name} onChange={e => setNewMember({...newMember, full_name: e.target.value})} required />
+                      <Input label={t('jobTitleEn')} value={newMember.job_title_en} onChange={e => setNewMember({...newMember, job_title_en: e.target.value})} required />
+                      <Input label={t('phoneNumber')} value={newMember.phone} onChange={e => setNewMember({...newMember, phone: e.target.value})} required />
+                      <Input label={t('email')} value={newMember.email} onChange={e => setNewMember({...newMember, email: e.target.value})} />
+                      <Input label={isEn ? 'Role in Project' : 'الدور في المشروع'} value={newMemberRole} onChange={e => setNewMemberRole(e.target.value)} required />
+                      
+                      <div className="flex justify-end gap-2 mt-6">
+                          <Button type="button" variant="ghost" onClick={() => setIsSuggestingMember(false)}>{t('cancel')}</Button>
+                          <Button type="submit">{t('submit')}</Button>
+                      </div>
+                  </form>
               </div>
           </div>
       )}

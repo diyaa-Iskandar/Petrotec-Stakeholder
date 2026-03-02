@@ -64,8 +64,10 @@ export interface TeamMember {
   whatsapp?: string;
   email?: string;
   company?: string;
+  company_id?: string;
   notes?: string;
   type: 'Internal' | 'External'; // Internal = Team Member, External = Others Member
+  status?: 'Approved' | 'Pending' | 'Rejected';
 }
 
 export interface ProjectAssignment {
@@ -76,6 +78,7 @@ export interface ProjectAssignment {
   role_en: string;
   role_ar: string;
   sort_order: number;
+  status?: 'Approved' | 'Pending' | 'Rejected';
 }
 
 export interface ProjectCompany {

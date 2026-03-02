@@ -1,10 +1,10 @@
 import React, { useState } from 'react';
 import { useData } from '../../contexts/DataContext';
 import { useLanguage } from '../../contexts/LanguageContext';
-import { Company, ContactPerson } from '../../types';
+import { Company, ContactPerson, TeamMember } from '../../types';
 import { Button } from '../../components/ui/Button';
 import { Input } from '../../components/ui/Input';
-import { Plus, Trash2, Edit2, Search, Building2, MapPin, User, Mail, Phone, X, Upload, Loader2, Briefcase } from 'lucide-react';
+import { Plus, Trash2, Edit2, Search, Building2, MapPin, User, Mail, Phone, X, Upload, Loader2, Briefcase, Users } from 'lucide-react';
 import { supabase } from '../../src/lib/supabase';
 import { CompanyLogo } from '../../components/CompanyLogo';
 
@@ -14,7 +14,7 @@ interface CompanyManagerProps {
 }
 
 export const CompanyManager: React.FC<CompanyManagerProps> = ({ type, title }) => {
-    const { clients, contractors, consultants, addCompany, updateCompany, deleteCompany, projectCompanies, projects } = useData();
+    const { clients, contractors, consultants, addCompany, updateCompany, deleteCompany, projectCompanies, projects, othersMembers, addTeamMember, updateTeamMember, deleteTeamMember } = useData();
     const { t, language } = useLanguage();
     const isEn = language === 'en';
     
@@ -29,16 +29,31 @@ export const CompanyManager: React.FC<CompanyManagerProps> = ({ type, title }) =
         logo: '',
         contact_persons: [] 
     });
+    const [companyEmployees, setCompanyEmployees] = useState<Partial<TeamMember>[]>([]);
     const [searchTerm, setSearchTerm] = useState('');
     const [uploading, setUploading] = useState(false);
 
-    const handleSubmit = (e: React.FormEvent) => {
+    const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         if (formData.name_en) {
+            let savedCompany: Company | undefined;
             if (currentId) {
-                updateCompany(type, currentId, formData);
+                savedCompany = await updateCompany(type, currentId, formData);
             } else {
-                addCompany(type, formData as any);
+                savedCompany = await addCompany(type, formData as any);
+            }
+
+            if (savedCompany) {
+                // Save employees
+                for (const emp of companyEmployees) {
+                    if (emp.id) {
+                        // Update existing
+                        await updateTeamMember(emp.id, { ...emp, company_id: savedCompany.id, company: savedCompany.name_en });
+                    } else {
+                        // Add new
+                        await addTeamMember({ ...emp, company_id: savedCompany.id, company: savedCompany.name_en, type: 'External' } as any);
+                    }
+                }
             }
             resetForm();
         }
@@ -54,11 +69,15 @@ export const CompanyManager: React.FC<CompanyManagerProps> = ({ type, title }) =
             contact_persons: company.contact_persons || []
         });
         setCurrentId(company.id);
+        // Load employees for this company
+        const employees = othersMembers.filter(m => m.company_id === company.id);
+        setCompanyEmployees(employees);
         setIsEditing(true);
     };
 
     const resetForm = () => {
         setFormData({ name_en: '', name_ar: '', location: '', location_url: '', logo: '', contact_persons: [] });
+        setCompanyEmployees([]);
         setCurrentId(null);
         setIsEditing(false);
     };
@@ -116,6 +135,28 @@ export const CompanyManager: React.FC<CompanyManagerProps> = ({ type, title }) =
             ...prev,
             contact_persons: (prev.contact_persons || []).map((p, i) => i === index ? { ...p, [field]: value } : p)
         }));
+    };
+
+    // --- Company Employees Logic ---
+    const addEmployee = () => {
+        const newEmployee: Partial<TeamMember> = { full_name: '', job_title_en: '', phone: '', email: '', type: 'External' };
+        setCompanyEmployees(prev => [...prev, newEmployee]);
+    };
+
+    const removeEmployee = async (index: number) => {
+        const emp = companyEmployees[index];
+        if (emp.id) {
+            if (window.confirm(isEn ? 'Are you sure you want to delete this employee?' : 'هل أنت متأكد من حذف هذا الموظف؟')) {
+                await deleteTeamMember(emp.id);
+                setCompanyEmployees(prev => prev.filter((_, i) => i !== index));
+            }
+        } else {
+            setCompanyEmployees(prev => prev.filter((_, i) => i !== index));
+        }
+    };
+
+    const updateEmployee = (index: number, field: keyof TeamMember, value: string) => {
+        setCompanyEmployees(prev => prev.map((emp, i) => i === index ? { ...emp, [field]: value } : emp));
     };
 
     const filteredData = data.filter(item => 
@@ -217,6 +258,67 @@ export const CompanyManager: React.FC<CompanyManagerProps> = ({ type, title }) =
                                     </div>
                                 ))}
                                 {(formData.contact_persons || []).length === 0 && (
+                                    <div className="text-center py-4 text-sm text-gray-400 border border-dashed border-gray-200 dark:border-gray-700 rounded-xl">
+                                        {t('noMembersFound')}
+                                    </div>
+                                )}
+                            </div>
+                        </div>
+
+                        {/* Company Employees Section */}
+                        <div className="border-t border-gray-100 dark:border-gray-700 pt-4">
+                            <div className="flex justify-between items-center mb-3">
+                                <div>
+                                    <h4 className="font-bold text-sm uppercase text-gray-500">{isEn ? 'Company Employees' : 'موظفي الشركة'}</h4>
+                                    <p className="text-xs text-gray-400">{isEn ? 'These employees will automatically appear in projects this company is assigned to.' : 'سيظهر هؤلاء الموظفون تلقائياً في المشاريع التي يتم تعيين هذه الشركة فيها.'}</p>
+                                </div>
+                                <Button type="button" size="sm" variant="outline" onClick={addEmployee} icon={<Plus size={14}/>}>{isEn ? 'Add Employee' : 'إضافة موظف'}</Button>
+                            </div>
+                            
+                            <div className="space-y-3">
+                                {companyEmployees.map((emp, index) => (
+                                    <div key={index} className="p-4 bg-gray-50 dark:bg-gray-900/50 rounded-xl border border-gray-100 dark:border-gray-700 relative group">
+                                        <button 
+                                            type="button" 
+                                            onClick={() => removeEmployee(index)}
+                                            className="absolute top-2 right-2 p-1 text-gray-400 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity"
+                                        >
+                                            <X size={16} />
+                                        </button>
+                                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3">
+                                            <Input 
+                                                placeholder={t('fullName')} 
+                                                value={emp.full_name || ''} 
+                                                onChange={e => updateEmployee(index, 'full_name', e.target.value)} 
+                                                className="!bg-white dark:!bg-gray-800"
+                                                icon={<User size={14}/>}
+                                                required
+                                            />
+                                            <Input 
+                                                placeholder={t('jobTitleEn')} 
+                                                value={emp.job_title_en || ''} 
+                                                onChange={e => updateEmployee(index, 'job_title_en', e.target.value)} 
+                                                className="!bg-white dark:!bg-gray-800"
+                                                required
+                                            />
+                                            <Input 
+                                                placeholder={t('email')} 
+                                                value={emp.email || ''} 
+                                                onChange={e => updateEmployee(index, 'email', e.target.value)} 
+                                                className="!bg-white dark:!bg-gray-800"
+                                                icon={<Mail size={14}/>}
+                                            />
+                                            <Input 
+                                                placeholder={t('phoneNumber')} 
+                                                value={emp.phone || ''} 
+                                                onChange={e => updateEmployee(index, 'phone', e.target.value)} 
+                                                className="!bg-white dark:!bg-gray-800"
+                                                icon={<Phone size={14}/>}
+                                            />
+                                        </div>
+                                    </div>
+                                ))}
+                                {companyEmployees.length === 0 && (
                                     <div className="text-center py-4 text-sm text-gray-400 border border-dashed border-gray-200 dark:border-gray-700 rounded-xl">
                                         {t('noMembersFound')}
                                     </div>

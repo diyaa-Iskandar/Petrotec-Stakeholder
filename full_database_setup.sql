@@ -72,6 +72,7 @@ create table public.team_members (
   whatsapp text,
   email text,
   company text, -- For external members
+  company_id uuid references public.companies(id) on delete set null, -- Link to company
   notes text,
   type text not null check (type in ('Internal', 'External')) default 'Internal'
 );
@@ -85,7 +86,8 @@ create table public.project_assignments (
   discipline text not null,
   role_en text,
   role_ar text,
-  sort_order integer default 1
+  sort_order integer default 1,
+  status text not null check (status in ('Approved', 'Pending', 'Rejected')) default 'Approved'
 );
 
 -- Project Companies Table (Stakeholders specific to a project)
@@ -200,19 +202,19 @@ begin
   select id into m_noha from public.team_members where full_name = 'Eng. Noha Kamal' limit 1;
   
   -- Assign to Monorail
-  insert into public.project_assignments (project_id, member_id, discipline, role_en, role_ar, sort_order) values 
-  (p_monorail, m_diyaa, 'Management', 'Project Manager', 'مدير المشروع', 1),
-  (p_monorail, m_ahmed, 'Civil Works', 'Lead Civil Engineer', 'مهندس مدني رئيسي', 2),
-  (p_monorail, m_mahmoud, 'MEP', 'MEP Coordinator', 'منسق إلكتروميكانيك', 3),
-  (p_monorail, m_sarah, 'QA/QC', 'Quality Manager', 'مدير الجودة', 4),
-  (p_monorail, m_tarek, 'Civil Works', 'Contractor Rep.', 'ممثل المقاول', 5),
-  (p_monorail, m_noha, 'Management', 'Consultant Rep.', 'ممثل الاستشاري', 6);
+  insert into public.project_assignments (project_id, member_id, discipline, role_en, role_ar, sort_order, status) values 
+  (p_monorail, m_diyaa, 'Management', 'Project Manager', 'مدير المشروع', 1, 'Approved'),
+  (p_monorail, m_ahmed, 'Civil Works', 'Lead Civil Engineer', 'مهندس مدني رئيسي', 2, 'Approved'),
+  (p_monorail, m_mahmoud, 'MEP', 'MEP Coordinator', 'منسق إلكتروميكانيك', 3, 'Approved'),
+  (p_monorail, m_sarah, 'QA/QC', 'Quality Manager', 'مدير الجودة', 4, 'Approved'),
+  (p_monorail, m_tarek, 'Civil Works', 'Contractor Rep.', 'ممثل المقاول', 5, 'Approved'),
+  (p_monorail, m_noha, 'Management', 'Consultant Rep.', 'ممثل الاستشاري', 6, 'Approved');
 
   -- Assign to Wind Farm
-  insert into public.project_assignments (project_id, member_id, discipline, role_en, role_ar, sort_order) values 
-  (p_windfarm, m_diyaa, 'Management', 'Project Director', 'مدير المشروع', 1),
-  (p_windfarm, m_mohamed, 'HSE', 'HSE Manager', 'مدير السلامة', 2),
-  (p_windfarm, m_ahmed, 'Civil Works', 'Foundation Engineer', 'مهندس أساسات', 3);
+  insert into public.project_assignments (project_id, member_id, discipline, role_en, role_ar, sort_order, status) values 
+  (p_windfarm, m_diyaa, 'Management', 'Project Director', 'مدير المشروع', 1, 'Approved'),
+  (p_windfarm, m_mohamed, 'HSE', 'HSE Manager', 'مدير السلامة', 2, 'Approved'),
+  (p_windfarm, m_ahmed, 'Civil Works', 'Foundation Engineer', 'مهندس أساسات', 3, 'Approved');
 end
 $$;
 

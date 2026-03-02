@@ -117,7 +117,12 @@ export const TRANSLATIONS = {
     saveCompany: "Save Company",
     keyContacts: "Key Contacts",
     more: "more",
-    noFound: "No results found."
+    noFound: "No results found.",
+    pending: "Pending",
+    pendingApprovals: "Pending Approvals",
+    approve: "Approve",
+    reject: "Reject",
+    suggestedBy: "Suggested for project:"
   },
   [Language.AR]: {
     projects: "المشاريع",
@@ -235,7 +240,12 @@ export const TRANSLATIONS = {
     saveCompany: "حفظ الشركة",
     keyContacts: "جهات الاتصال الرئيسية",
     more: "المزيد",
-    noFound: "لم يتم العثور على نتائج."
+    noFound: "لم يتم العثور على نتائج.",
+    pending: "قيد الانتظار",
+    pendingApprovals: "طلبات قيد الانتظار",
+    approve: "موافقة",
+    reject: "رفض",
+    suggestedBy: "مقترح لمشروع:"
   }
 };
 

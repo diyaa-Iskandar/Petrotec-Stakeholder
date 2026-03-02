@@ -6,6 +6,7 @@ interface DataContextType {
   projects: Project[];
   teamMembers: TeamMember[]; // Internal
   othersMembers: TeamMember[]; // External
+  allMembers: TeamMember[]; // All
   assignments: ProjectAssignment[];
   
   clients: Company[];
@@ -21,17 +22,18 @@ interface DataContextType {
   deleteProject: (id: string) => Promise<void>;
 
   // Team Actions
-  addTeamMember: (member: Omit<TeamMember, 'id'>) => Promise<void>;
+  addTeamMember: (member: Omit<TeamMember, 'id'>) => Promise<TeamMember | undefined>;
   updateTeamMember: (id: string, updates: Partial<TeamMember>) => Promise<void>;
   deleteTeamMember: (id: string) => Promise<void>;
 
   // Company Actions
-  addCompany: (type: 'Client' | 'Contractor' | 'Consultant', company: Omit<Company, 'id'>) => Promise<void>;
-  updateCompany: (type: 'Client' | 'Contractor' | 'Consultant', id: string, updates: Partial<Company>) => Promise<void>;
+  addCompany: (type: 'Client' | 'Contractor' | 'Consultant', company: Omit<Company, 'id'>) => Promise<Company | undefined>;
+  updateCompany: (type: 'Client' | 'Contractor' | 'Consultant', id: string, updates: Partial<Company>) => Promise<Company | undefined>;
   deleteCompany: (type: 'Client' | 'Contractor' | 'Consultant', id: string) => Promise<void>;
 
   // Assignment Actions
   assignMemberToProject: (assignment: Omit<ProjectAssignment, 'id'>) => Promise<void>;
+  updateProjectAssignment: (id: string, updates: Partial<ProjectAssignment>) => Promise<void>;
   removeAssignment: (assignmentId: string) => Promise<void>;
   getProjectTeam: (projectId: string) => any[];
 
@@ -55,8 +57,8 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [loading, setLoading] = useState(true);
 
   // Derived state
-  const teamMembers = allMembers.filter(m => m.type === 'Internal');
-  const othersMembers = allMembers.filter(m => m.type === 'External');
+  const teamMembers = allMembers.filter(m => m.type === 'Internal' && m.status !== 'Pending');
+  const othersMembers = allMembers.filter(m => m.type === 'External' && m.status !== 'Pending');
 
   // Fetch Initial Data
   useEffect(() => {
@@ -200,6 +202,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     if (error) throw error;
     if (data) {
         setAllMembers(prev => prev.some(m => m.id === data.id) ? prev : [...prev, data as TeamMember]);
+        return data as TeamMember;
     }
   };
 
@@ -221,12 +224,11 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const addCompany = async (type: 'Client' | 'Contractor' | 'Consultant', companyData: Omit<Company, 'id'>) => {
     const { data, error } = await supabase.from('companies').insert([{ ...companyData, type }]).select().single();
     if (error) throw error;
-    // For companies, we rely on the subscription or manual refresh because we have separate states (clients, contractors, consultants)
-    // But we can update locally too
     if (data) {
         if (type === 'Client') setClients(prev => [...prev, data]);
         if (type === 'Contractor') setContractors(prev => [...prev, data]);
         if (type === 'Consultant') setConsultants(prev => [...prev, data]);
+        return data as Company;
     }
   };
 
@@ -237,6 +239,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
         if (type === 'Client') setClients(prev => prev.map(c => c.id === id ? data : c));
         if (type === 'Contractor') setContractors(prev => prev.map(c => c.id === id ? data : c));
         if (type === 'Consultant') setConsultants(prev => prev.map(c => c.id === id ? data : c));
+        return data as Company;
     }
   };
 
@@ -257,6 +260,14 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
+  const updateProjectAssignment = async (id: string, updates: Partial<ProjectAssignment>) => {
+    const { data, error } = await supabase.from('project_assignments').update(updates).eq('id', id).select().single();
+    if (error) throw error;
+    if (data) {
+        setAssignments(prev => prev.map(a => a.id === data.id ? data as ProjectAssignment : a));
+    }
+  };
+
   const removeAssignment = async (id: string) => {
     const { error } = await supabase.from('project_assignments').delete().eq('id', id);
     if (error) throw error;
@@ -274,7 +285,8 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
         role_ar: a.role_ar,
         discipline: a.discipline,
         assignment_id: a.id,
-        assignment_sort_order: a.sort_order
+        assignment_sort_order: a.sort_order,
+        assignment_status: a.status || 'Approved'
       };
     }).filter(Boolean);
   };
@@ -299,6 +311,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
       projects,
       teamMembers,
       othersMembers,
+      allMembers,
       assignments,
       clients,
       contractors,
@@ -315,6 +328,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
       updateCompany,
       deleteCompany,
       assignMemberToProject,
+      updateProjectAssignment,
       removeAssignment,
       getProjectTeam,
       addProjectCompany,
