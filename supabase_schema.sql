@@ -113,7 +113,8 @@ create table public.project_companies (
   created_at timestamp with time zone default timezone('utc'::text, now()) not null,
   project_id uuid references public.projects(id) on delete cascade,
   company_id uuid references public.companies(id) on delete cascade,
-  role text not null check (role in ('End Client', 'Main Contractor', 'Sub Contractor', 'Consultant', 'Other'))
+  role text not null check (role in ('End Client', 'Main Contractor', 'Sub Contractor', 'Consultant', 'Other')),
+  selected_contacts jsonb default '[]'::jsonb
 );
 
 -- RLS for Project Companies

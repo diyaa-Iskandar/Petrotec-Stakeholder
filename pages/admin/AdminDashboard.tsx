@@ -148,7 +148,7 @@ const ManageProjects = ({ onEditProject }: { onEditProject: (p: Project) => void
 
 // 3. Project Detail Editor
 const ProjectEditor = ({ project, onBack }: { project: Project; onBack: () => void }) => {
-    const { updateProject, teamMembers, othersMembers, assignments, assignMemberToProject, updateProjectAssignment, removeAssignment, clients, contractors, consultants, projectCompanies, addProjectCompany, removeProjectCompany } = useData();
+    const { updateProject, teamMembers, othersMembers, assignments, assignMemberToProject, updateProjectAssignment, removeAssignment, clients, contractors, consultants, projectCompanies, addProjectCompany, updateProjectCompany, removeProjectCompany } = useData();
     const { t, language } = useLanguage();
     const [activeTab, setActiveTab] = useState<'info' | 'partners' | 'team'>('partners');
     
@@ -168,6 +168,8 @@ const ProjectEditor = ({ project, onBack }: { project: Project; onBack: () => vo
     // Partner State
     const [selectedPartner, setSelectedPartner] = useState('');
     const [partnerRole, setPartnerRole] = useState('');
+    const [selectedContacts, setSelectedContacts] = useState<string[]>([]);
+    const [editingPartnerId, setEditingPartnerId] = useState<string | null>(null);
 
     const handleUpdateInfo = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -205,18 +207,36 @@ const ProjectEditor = ({ project, onBack }: { project: Project; onBack: () => vo
         e.preventDefault();
         if (selectedPartner && partnerRole) {
             try {
-                await addProjectCompany({
-                    project_id: project.id,
-                    company_id: selectedPartner,
-                    role: partnerRole as any // Type assertion to ensure it matches
-                });
+                if (editingPartnerId) {
+                    await updateProjectCompany(editingPartnerId, {
+                        company_id: selectedPartner,
+                        role: partnerRole as any,
+                        selected_contacts: selectedContacts
+                    });
+                } else {
+                    await addProjectCompany({
+                        project_id: project.id,
+                        company_id: selectedPartner,
+                        role: partnerRole as any,
+                        selected_contacts: selectedContacts
+                    });
+                }
                 setSelectedPartner('');
                 setPartnerRole('');
+                setSelectedContacts([]);
+                setEditingPartnerId(null);
             } catch (error) {
-                console.error("Error adding partner:", error);
-                alert("Failed to add partner. Please try again.");
+                console.error("Error adding/updating partner:", error);
+                alert("Failed to save partner. Please try again.");
             }
         }
+    };
+
+    const handleEditPartner = (pc: ProjectCompany) => {
+        setEditingPartnerId(pc.id);
+        setSelectedPartner(pc.company_id);
+        setPartnerRole(pc.role);
+        setSelectedContacts(pc.selected_contacts || []);
     };
 
     const projectAssignments = assignments.filter(a => a.project_id === project.id);
@@ -305,7 +325,54 @@ const ProjectEditor = ({ project, onBack }: { project: Project; onBack: () => vo
                                     <option value="Other">{t('other')}</option>
                                 </select>
                             </div>
-                            <Button type="submit" className="w-full" icon={<Plus size={16}/>}>{t('add')}</Button>
+
+                            {selectedPartner && (
+                                (() => {
+                                    const comp = allCompanies.find(c => c.id === selectedPartner);
+                                    if (comp && comp.contact_persons && comp.contact_persons.length > 0) {
+                                        return (
+                                            <div>
+                                                <label className="block text-sm font-medium mb-1 dark:text-gray-300">{t('keyContacts')} ({t('optional')})</label>
+                                                <p className="text-xs text-gray-500 mb-2">Select which contacts are involved in this project. If none selected, all will be shown.</p>
+                                                <div className="space-y-2 max-h-40 overflow-y-auto p-3 border border-gray-200 dark:border-gray-700 rounded-xl bg-gray-50 dark:bg-gray-900/50">
+                                                    {comp.contact_persons.map((cp, i) => (
+                                                        <label key={i} className="flex items-center gap-2 text-sm dark:text-gray-300 cursor-pointer">
+                                                            <input 
+                                                                type="checkbox" 
+                                                                checked={selectedContacts.includes(cp.name)}
+                                                                onChange={(e) => {
+                                                                    if (e.target.checked) {
+                                                                        setSelectedContacts([...selectedContacts, cp.name]);
+                                                                    } else {
+                                                                        setSelectedContacts(selectedContacts.filter(n => n !== cp.name));
+                                                                    }
+                                                                }}
+                                                                className="rounded border-gray-300 text-petrotec-600 focus:ring-petrotec-500"
+                                                            />
+                                                            {cp.name} {cp.role ? `(${cp.role})` : ''}
+                                                        </label>
+                                                    ))}
+                                                </div>
+                                            </div>
+                                        );
+                                    }
+                                    return null;
+                                })()
+                            )}
+
+                            <div className="flex gap-2">
+                                {editingPartnerId && (
+                                    <Button type="button" variant="ghost" onClick={() => {
+                                        setEditingPartnerId(null);
+                                        setSelectedPartner('');
+                                        setPartnerRole('');
+                                        setSelectedContacts([]);
+                                    }} className="flex-1">{t('cancel')}</Button>
+                                )}
+                                <Button type="submit" className="flex-1" icon={editingPartnerId ? <Edit2 size={16}/> : <Plus size={16}/>}>
+                                    {editingPartnerId ? t('saveChanges') : t('add')}
+                                </Button>
+                            </div>
                         </form>
                     </div>
 
@@ -327,9 +394,17 @@ const ProjectEditor = ({ project, onBack }: { project: Project; onBack: () => vo
                                                 <div className="text-xs font-semibold text-petrotec-600 bg-petrotec-50 dark:bg-petrotec-900/30 px-2 py-0.5 rounded-md w-fit mt-1">
                                                     {pc.role}
                                                 </div>
+                                                {pc.selected_contacts && pc.selected_contacts.length > 0 && (
+                                                    <div className="text-[10px] text-gray-500 mt-1">
+                                                        {pc.selected_contacts.length} contact(s) selected
+                                                    </div>
+                                                )}
                                             </div>
                                         </div>
-                                        <button onClick={() => removeProjectCompany(pc.id)} className="text-red-400 hover:text-red-600 p-2"><Trash2 size={16}/></button>
+                                        <div className="flex gap-1">
+                                            <button onClick={() => handleEditPartner(pc)} className="text-blue-400 hover:text-blue-600 p-2"><Edit2 size={16}/></button>
+                                            <button onClick={() => removeProjectCompany(pc.id)} className="text-red-400 hover:text-red-600 p-2"><Trash2 size={16}/></button>
+                                        </div>
                                     </div>
                                 )
                             })}

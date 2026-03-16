@@ -39,6 +39,7 @@ interface DataContextType {
 
   // Project Company Actions
   addProjectCompany: (pc: Omit<ProjectCompany, 'id'>) => Promise<void>;
+  updateProjectCompany: (id: string, updates: Partial<ProjectCompany>) => Promise<void>;
   removeProjectCompany: (id: string) => Promise<void>;
 }
 
@@ -300,6 +301,14 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }
   };
 
+  const updateProjectCompany = async (id: string, updates: Partial<ProjectCompany>) => {
+      const { data, error } = await supabase.from('project_companies').update(updates).eq('id', id).select().single();
+      if (error) throw error;
+      if (data) {
+          setProjectCompanies(prev => prev.map(p => p.id === data.id ? data as ProjectCompany : p));
+      }
+  };
+
   const removeProjectCompany = async (id: string) => {
       const { error } = await supabase.from('project_companies').delete().eq('id', id);
       if (error) throw error;
@@ -332,6 +341,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
       removeAssignment,
       getProjectTeam,
       addProjectCompany,
+      updateProjectCompany,
       removeProjectCompany
     }}>
       {children}

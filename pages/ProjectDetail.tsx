@@ -7,7 +7,7 @@ import { useData } from '../contexts/DataContext';
 import { Input } from '../components/ui/Input';
 import { Button } from '../components/ui/Button';
 import { Lock, Search, Phone, Mail, MessageCircle, Copy, Check, Filter, ShieldAlert, ArrowLeft, ExternalLink, HardHat, FileText, Building2, MapPin, X, Globe, Users, Sun, Moon, ChevronDown, ChevronUp, Briefcase, Plus } from 'lucide-react';
-import { Company, TeamMember } from '../types';
+import { Company, TeamMember, ProjectCompany } from '../types';
 import { Language } from '../types';
 import { CompanyLogo } from '../components/CompanyLogo';
 
@@ -124,7 +124,7 @@ export const ProjectDetail: React.FC = () => {
   const [copiedId, setCopiedId] = useState<string | null>(null);
 
   // Modal State
-  const [selectedCompany, setSelectedCompany] = useState<Company | null>(null);
+  const [selectedPartner, setSelectedPartner] = useState<(ProjectCompany & { company: Company }) | null>(null);
   const [isSuggestingMember, setIsSuggestingMember] = useState(false);
   const [newMember, setNewMember] = useState<Partial<TeamMember>>({
       full_name: '', job_title_en: '', phone: '', email: '', type: 'External'
@@ -220,10 +220,46 @@ export const ProjectDetail: React.FC = () => {
         assignment_sort_order: 999
     }));
 
-    return [...assigned, ...autoIncluded];
-  }, [isLocked, project.id, getProjectTeam, projectCompanies, othersMembers]);
+    const existingEmails = new Set([...assigned, ...autoIncluded].map(m => m.email?.toLowerCase()).filter(Boolean));
+    const existingNames = new Set([...assigned, ...autoIncluded].map(m => m.full_name.toLowerCase()));
 
-  const { filteredManagers, filteredInternal, filteredExternal } = useMemo(() => {
+    // 3. Get selected contact persons from companies
+    const allCompanies = [...clients, ...contractors, ...consultants];
+    const contactPersons = projectCompanies
+        .filter(pc => pc.project_id === project.id)
+        .flatMap(pc => {
+            const company = allCompanies.find(c => c.id === pc.company_id);
+            if (!company || !company.contact_persons) return [];
+            
+            // Filter by selected_contacts and avoid duplicates with existing team members
+            const selected = company.contact_persons.filter(cp => {
+                const isSelected = !pc.selected_contacts || pc.selected_contacts.length === 0 || pc.selected_contacts.includes(cp.name);
+                const isDuplicate = (cp.email && existingEmails.has(cp.email.toLowerCase())) || existingNames.has(cp.name.toLowerCase());
+                return isSelected && !isDuplicate;
+            });
+
+            return selected.map(cp => ({
+                id: `cp-${company.id}-${cp.name}`,
+                full_name: cp.name,
+                job_title_en: cp.role || 'Contact Person',
+                job_title_ar: cp.role || 'جهة اتصال',
+                company: company.name_en,
+                company_id: company.id,
+                type: 'External',
+                role_en: 'Contact Person',
+                role_ar: 'جهة اتصال',
+                discipline: 'Other',
+                assignment_sort_order: 999,
+                email: cp.email,
+                phone: cp.phone,
+                whatsapp: cp.phone
+            } as TeamMember));
+        });
+
+    return [...assigned, ...autoIncluded, ...contactPersons];
+  }, [isLocked, project.id, getProjectTeam, projectCompanies, othersMembers, clients, contractors, consultants]);
+
+  const { filteredManagers, companyGroups, filteredOthers } = useMemo(() => {
     let filtered = projectTeam.filter(s => {
       const search = searchTerm.toLowerCase();
       const matchesSearch = 
@@ -238,11 +274,40 @@ export const ProjectDetail: React.FC = () => {
     });
 
     const managers = filtered.filter(m => m.role_en.toLowerCase().includes('manager') || m.role_ar.includes('مدير'));
-    const internal = filtered.filter(m => m.type === 'Internal' && !managers.includes(m));
-    const external = filtered.filter(m => m.type === 'External' && !managers.includes(m));
+    
+    // Remaining members
+    const nonManagers = filtered.filter(m => !managers.includes(m));
 
-    return { filteredManagers: managers, filteredInternal: internal, filteredExternal: external };
-  }, [projectTeam, searchTerm, filterHasWhatsapp, filterHasEmail]);
+    // Group by company
+    const groups: { company: Company, members: TeamMember[] }[] = [];
+    const others: TeamMember[] = [];
+
+    const allCompanies = [...clients, ...contractors, ...consultants];
+    const projectCompanyIds = projectCompanies.filter(pc => pc.project_id === project.id).map(pc => pc.company_id);
+
+    // Create groups for all project companies
+    projectCompanyIds.forEach(compId => {
+        const company = allCompanies.find(c => c.id === compId);
+        if (company) {
+            groups.push({ company, members: [] });
+        }
+    });
+
+    nonManagers.forEach(m => {
+        if (m.company_id && projectCompanyIds.includes(m.company_id)) {
+            const group = groups.find(g => g.company.id === m.company_id);
+            if (group) {
+                group.members.push(m);
+            } else {
+                others.push(m);
+            }
+        } else {
+            others.push(m);
+        }
+    });
+
+    return { filteredManagers: managers, companyGroups: groups.filter(g => g.members.length > 0), filteredOthers: others };
+  }, [projectTeam, searchTerm, filterHasWhatsapp, filterHasEmail, projectCompanies, project.id, clients, contractors, consultants]);
 
   const copyToClipboard = (text: string, id: string) => {
     navigator.clipboard.writeText(text);
@@ -407,7 +472,7 @@ export const ProjectDetail: React.FC = () => {
               {partners.map((p, idx) => (
                   <div 
                     key={p.id} 
-                    onClick={() => setSelectedCompany(p.company!)}
+                    onClick={() => setSelectedPartner(p as any)}
                     className="bg-white dark:bg-gray-800 p-6 rounded-2xl border border-gray-100 dark:border-gray-700 shadow-sm hover:shadow-xl hover:-translate-y-1 transition-all cursor-pointer group"
                   >
                       <div className="flex items-start justify-between mb-4">
@@ -494,27 +559,33 @@ export const ProjectDetail: React.FC = () => {
             </CollapsibleCard>
         )}
 
-        {filteredInternal.length > 0 && (
-            <CollapsibleCard title={t('teamMembers')} icon={<HardHat className="text-petrotec-600"/>} defaultOpen={true} count={filteredInternal.length}>
+        {companyGroups.map((group, idx) => (
+            <CollapsibleCard 
+                key={group.company.id} 
+                title={isEn ? group.company.name_en : (group.company.name_ar || group.company.name_en)} 
+                icon={<Building2 className="text-petrotec-600"/>} 
+                defaultOpen={true} 
+                count={group.members.length}
+            >
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-                    {filteredInternal.map(s => (
+                    {group.members.map(s => (
+                        <MemberCard key={s.id} s={s} isEn={isEn} t={t} copyToClipboard={copyToClipboard} copiedId={copiedId} />
+                    ))}
+                </div>
+            </CollapsibleCard>
+        ))}
+
+        {filteredOthers.length > 0 && (
+            <CollapsibleCard title={t('other')} icon={<Users className="text-petrotec-600"/>} defaultOpen={true} count={filteredOthers.length}>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                    {filteredOthers.map(s => (
                         <MemberCard key={s.id} s={s} isEn={isEn} t={t} copyToClipboard={copyToClipboard} copiedId={copiedId} />
                     ))}
                 </div>
             </CollapsibleCard>
         )}
 
-        {filteredExternal.length > 0 && (
-            <CollapsibleCard title={t('other')} icon={<Users className="text-petrotec-600"/>} defaultOpen={true} count={filteredExternal.length}>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-                    {filteredExternal.map(s => (
-                        <MemberCard key={s.id} s={s} isEn={isEn} t={t} copyToClipboard={copyToClipboard} copiedId={copiedId} />
-                    ))}
-                </div>
-            </CollapsibleCard>
-        )}
-
-        {filteredManagers.length === 0 && filteredInternal.length === 0 && filteredExternal.length === 0 && (
+        {filteredManagers.length === 0 && companyGroups.length === 0 && filteredOthers.length === 0 && (
           <div className="py-20 text-center text-gray-400 bg-gray-50 dark:bg-gray-800/30 rounded-3xl border border-dashed border-gray-200 dark:border-gray-700">
              <Filter size={48} className="mx-auto mb-4 opacity-20"/>
              <p className="text-lg font-medium">{t('noResults')}</p>
@@ -524,30 +595,30 @@ export const ProjectDetail: React.FC = () => {
       </div>
 
       {/* Company Details Modal */}
-      {selectedCompany && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-gray-900/60 backdrop-blur-sm animate-fade-in" onClick={() => setSelectedCompany(null)}>
+      {selectedPartner && selectedPartner.company && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-gray-900/60 backdrop-blur-sm animate-fade-in" onClick={() => setSelectedPartner(null)}>
               <div className="bg-white dark:bg-gray-800 w-full max-w-2xl rounded-3xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh]" onClick={e => e.stopPropagation()}>
                   <div className="p-6 border-b border-gray-100 dark:border-gray-700 flex justify-between items-center bg-gray-50 dark:bg-gray-800/50 shrink-0">
                       <div className="flex items-center gap-4">
                           <div className="w-16 h-16 rounded-xl bg-white dark:bg-gray-700 flex items-center justify-center border border-gray-200 dark:border-gray-600 p-2 overflow-hidden">
-                              <CompanyLogo logo={selectedCompany.logo} name={selectedCompany.name_en} id={selectedCompany.id} className="w-full h-full" iconSize={32} />
+                              <CompanyLogo logo={selectedPartner.company.logo} name={selectedPartner.company.name_en} id={selectedPartner.company.id} className="w-full h-full" iconSize={32} />
                           </div>
                           <div>
-                              <h3 className="text-xl font-bold dark:text-white">{isEn ? selectedCompany.name_en : (selectedCompany.name_ar || selectedCompany.name_en)}</h3>
+                              <h3 className="text-xl font-bold dark:text-white">{isEn ? selectedPartner.company.name_en : (selectedPartner.company.name_ar || selectedPartner.company.name_en)}</h3>
                               <div className="text-sm text-gray-500 flex items-center gap-1 mt-1">
-                                  <MapPin size={14}/> {selectedCompany.location || 'No Location'}
+                                  <MapPin size={14}/> {selectedPartner.company.location || 'No Location'}
                               </div>
                           </div>
                       </div>
-                      <button onClick={() => setSelectedCompany(null)} className="p-2 hover:bg-gray-200 dark:hover:bg-gray-700 rounded-full transition-colors">
+                      <button onClick={() => setSelectedPartner(null)} className="p-2 hover:bg-gray-200 dark:hover:bg-gray-700 rounded-full transition-colors">
                           <X size={20} className="text-gray-500"/>
                       </button>
                   </div>
                   
                   <div className="p-6 overflow-y-auto">
-                      {selectedCompany.location_url && (
+                      {selectedPartner.company.location_url && (
                           <a 
-                              href={selectedCompany.location_url} 
+                              href={selectedPartner.company.location_url} 
                               target="_blank" 
                               rel="noreferrer"
                               className="flex items-center gap-2 text-blue-600 hover:underline mb-6 p-3 bg-blue-50 dark:bg-blue-900/20 rounded-xl w-fit"
@@ -561,8 +632,10 @@ export const ProjectDetail: React.FC = () => {
                       </h4>
                       
                       <div className="space-y-3">
-                          {selectedCompany.contact_persons && selectedCompany.contact_persons.length > 0 ? (
-                              selectedCompany.contact_persons.map((p, i) => (
+                          {selectedPartner.company.contact_persons && selectedPartner.company.contact_persons.length > 0 ? (
+                              selectedPartner.company.contact_persons
+                                .filter(p => !selectedPartner.selected_contacts || selectedPartner.selected_contacts.length === 0 || selectedPartner.selected_contacts.includes(p.name))
+                                .map((p, i) => (
                                   <div key={i} className="p-4 rounded-xl bg-gray-50 dark:bg-gray-900/50 border border-gray-100 dark:border-gray-700 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                                       <div>
                                           <div className="font-bold dark:text-white">{p.name}</div>

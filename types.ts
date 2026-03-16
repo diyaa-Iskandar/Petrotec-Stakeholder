@@ -86,4 +86,5 @@ export interface ProjectCompany {
   project_id: string;
   company_id: string;
   role: 'End Client' | 'Main Contractor' | 'Sub Contractor' | 'Consultant' | 'Other';
+  selected_contacts?: string[];
 }
