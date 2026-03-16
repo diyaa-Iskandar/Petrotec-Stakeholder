@@ -122,7 +122,8 @@ export const TRANSLATIONS = {
     pendingApprovals: "Pending Approvals",
     approve: "Approve",
     reject: "Reject",
-    suggestedBy: "Suggested for project:"
+    suggestedBy: "Suggested for project:",
+    optional: "Optional"
   },
   [Language.AR]: {
     projects: "المشاريع",
@@ -245,7 +246,8 @@ export const TRANSLATIONS = {
     pendingApprovals: "طلبات قيد الانتظار",
     approve: "موافقة",
     reject: "رفض",
-    suggestedBy: "مقترح لمشروع:"
+    suggestedBy: "مقترح لمشروع:",
+    optional: "اختياري"
   }
 };
 

@@ -47,6 +47,10 @@ const MemberCard: React.FC<{ s: any; isEn: boolean; t: any; copyToClipboard: (te
           <p className="text-gray-500 dark:text-gray-400 text-sm mt-0.5">
             {isEn ? s.job_title_en : s.job_title_ar}
           </p>
+          <div className="flex items-center gap-1 mt-1.5 text-xs font-medium text-gray-500 dark:text-gray-400">
+            <Building2 size={12} />
+            <span>{s.type === 'Internal' ? 'Petrotec' : (s.company || (isEn ? 'Independent' : 'مستقل'))}</span>
+          </div>
           <div className="inline-block mt-2 px-2 py-0.5 rounded text-xs font-medium bg-petrotec-50 text-petrotec-700 dark:bg-petrotec-900/30 dark:text-petrotec-300 border border-petrotec-100 dark:border-petrotec-800">
             {isEn ? s.role_en : s.role_ar}
           </div>
@@ -522,8 +526,8 @@ export const ProjectDetail: React.FC = () => {
       {/* Company Details Modal */}
       {selectedCompany && (
           <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-gray-900/60 backdrop-blur-sm animate-fade-in" onClick={() => setSelectedCompany(null)}>
-              <div className="bg-white dark:bg-gray-800 w-full max-w-2xl rounded-3xl shadow-2xl overflow-hidden" onClick={e => e.stopPropagation()}>
-                  <div className="p-6 border-b border-gray-100 dark:border-gray-700 flex justify-between items-center bg-gray-50 dark:bg-gray-800/50">
+              <div className="bg-white dark:bg-gray-800 w-full max-w-2xl rounded-3xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh]" onClick={e => e.stopPropagation()}>
+                  <div className="p-6 border-b border-gray-100 dark:border-gray-700 flex justify-between items-center bg-gray-50 dark:bg-gray-800/50 shrink-0">
                       <div className="flex items-center gap-4">
                           <div className="w-16 h-16 rounded-xl bg-white dark:bg-gray-700 flex items-center justify-center border border-gray-200 dark:border-gray-600 p-2 overflow-hidden">
                               <CompanyLogo logo={selectedCompany.logo} name={selectedCompany.name_en} id={selectedCompany.id} className="w-full h-full" iconSize={32} />
@@ -540,7 +544,7 @@ export const ProjectDetail: React.FC = () => {
                       </button>
                   </div>
                   
-                  <div className="p-6">
+                  <div className="p-6 overflow-y-auto">
                       {selectedCompany.location_url && (
                           <a 
                               href={selectedCompany.location_url} 
@@ -590,14 +594,14 @@ export const ProjectDetail: React.FC = () => {
       {/* Suggest Member Modal */}
       {isSuggestingMember && (
           <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-gray-900/60 backdrop-blur-sm animate-fade-in" onClick={() => setIsSuggestingMember(false)}>
-              <div className="bg-white dark:bg-gray-800 w-full max-w-md rounded-3xl shadow-2xl overflow-hidden" onClick={e => e.stopPropagation()}>
-                  <div className="p-6 border-b border-gray-100 dark:border-gray-700 flex justify-between items-center bg-gray-50 dark:bg-gray-800/50">
+              <div className="bg-white dark:bg-gray-800 w-full max-w-md rounded-3xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh]" onClick={e => e.stopPropagation()}>
+                  <div className="p-6 border-b border-gray-100 dark:border-gray-700 flex justify-between items-center bg-gray-50 dark:bg-gray-800/50 shrink-0">
                       <h3 className="text-xl font-bold dark:text-white">{isEn ? 'Suggest Team Member' : 'اقتراح عضو للفريق'}</h3>
                       <button onClick={() => setIsSuggestingMember(false)} className="p-2 hover:bg-gray-200 dark:hover:bg-gray-700 rounded-full transition-colors">
                           <X size={20} className="text-gray-500"/>
                       </button>
                   </div>
-                  <form onSubmit={handleSuggestMember} className="p-6 space-y-4">
+                  <form onSubmit={handleSuggestMember} className="p-6 space-y-4 overflow-y-auto">
                       <p className="text-sm text-gray-500 mb-4">
                           {isEn ? 'This member will be added to the project after admin approval.' : 'سيتم إضافة هذا العضو للمشروع بعد موافقة الإدارة.'}
                       </p>
@@ -605,6 +609,7 @@ export const ProjectDetail: React.FC = () => {
                       <Input label={t('jobTitleEn')} value={newMember.job_title_en} onChange={e => setNewMember({...newMember, job_title_en: e.target.value})} required />
                       <Input label={t('phoneNumber')} value={newMember.phone} onChange={e => setNewMember({...newMember, phone: e.target.value})} required />
                       <Input label={t('email')} value={newMember.email} onChange={e => setNewMember({...newMember, email: e.target.value})} />
+                      <Input label={`${t('companyName')} (${t('optional')})`} value={newMember.company || ''} onChange={e => setNewMember({...newMember, company: e.target.value})} />
                       <Input label={isEn ? 'Role in Project' : 'الدور في المشروع'} value={newMemberRole} onChange={e => setNewMemberRole(e.target.value)} required />
                       
                       <div className="flex justify-end gap-2 mt-6">

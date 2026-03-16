@@ -97,7 +97,7 @@ export const TeamManager: React.FC<TeamManagerProps> = ({ type, title }) => {
                         <Input label={t('jobTitleAr')} value={newMember.job_title_ar} onChange={e => setNewMember({...newMember, job_title_ar: e.target.value})} />
                         <Input label={t('email')} value={newMember.email} onChange={e => setNewMember({...newMember, email: e.target.value})} />
                         {type === 'External' && (
-                             <Input label={t('companyName')} value={newMember.company} onChange={e => setNewMember({...newMember, company: e.target.value})} />
+                             <Input label={`${t('companyName')} (${t('optional')})`} value={newMember.company} onChange={e => setNewMember({...newMember, company: e.target.value})} />
                         )}
                         <div className="md:col-span-2 flex justify-end gap-2 mt-4">
                             <Button type="button" variant="ghost" onClick={resetForm}>{t('cancel')}</Button>

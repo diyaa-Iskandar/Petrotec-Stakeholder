@@ -380,7 +380,7 @@ const ProjectEditor = ({ project, onBack }: { project: Project; onBack: () => vo
                                     {othersMembers.filter(m => !m.company_id).length > 0 && (
                                         <optgroup label={t('otherMembers')}>
                                             {othersMembers.filter(m => !m.company_id).map(m => (
-                                                <option key={m.id} value={m.id}>{m.full_name}</option>
+                                                <option key={m.id} value={m.id}>{m.full_name} {m.company ? `(${m.company})` : ''}</option>
                                             ))}
                                         </optgroup>
                                     )}
@@ -505,6 +505,7 @@ const PendingApprovals = () => {
                                         <div className="flex flex-wrap gap-3 text-sm">
                                             {member.phone && <span className="flex items-center gap-1 text-gray-600 dark:text-gray-400"><Phone size={14}/> {member.phone}</span>}
                                             {member.email && <span className="flex items-center gap-1 text-gray-600 dark:text-gray-400"><Mail size={14}/> {member.email}</span>}
+                                            {member.company && <span className="flex items-center gap-1 text-gray-600 dark:text-gray-400"><Building2 size={14}/> {member.company}</span>}
                                         </div>
                                         <div className="mt-3 inline-flex items-center gap-2 px-3 py-1.5 bg-petrotec-50 dark:bg-petrotec-900/30 text-petrotec-700 dark:text-petrotec-300 rounded-lg text-sm font-medium border border-petrotec-100 dark:border-petrotec-800">
                                             <Briefcase size={14} />
